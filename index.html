@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Verificação Facial</title>
+
+<style>
+body {
+  margin: 0;
+  background: black;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+#overlay {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#compass {
+  position: absolute;
+  top: 20px;
+  width: 100%;
+  font-size: 30px;
+}
+
+.point {
+  display: inline-block;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #222;
+}
+
+.active { background: yellow; color: black; }
+.correct { background: green; }
+.wrong { background: red; }
+
+#instruction {
+  position: absolute;
+  bottom: 100px;
+  width: 100%;
+  font-size: 24px;
+}
+
+button {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  background: #007bff;
+  color: white;
+}
+</style>
+</head>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+
+<div id="overlay">
+
+  <div id="compass">
+    <span id="N" class="point">N</span>
+    <span id="NE" class="point">NE</span>
+    <span id="L" class="point">L</span>
+    <span id="SE" class="point">SE</span>
+    <span id="S" class="point">S</span>
+    <span id="SO" class="point">SO</span>
+    <span id="O" class="point">O</span>
+    <span id="NO" class="point">NO</span>
+  </div>
+
+  <div id="instruction">Clique para iniciar</div>
+  <button onclick="start()">Iniciar</button>
+
+</div>
+
+<script>
+const video = document.getElementById("video");
+const instruction = document.getElementById("instruction");
+
+const steps = ["N","NE","L","SE","S","SO","O","NO"];
+
+let current = 0;
+let recorder;
+let chunks = [];
+
+async function start() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  video.srcObject = stream;
+
+  // GRAVAÇÃO
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "verificacao.webm";
+    a.click();
+  };
+
+  recorder.start();
+
+  nextStep();
+}
+
+function nextStep() {
+  if (current >= steps.length) {
+    instruction.innerText = "Finalizado ✅";
+    recorder.stop();
+    return;
+  }
+
+  const dir = steps[current];
+
+  document.querySelectorAll(".point").forEach(p => {
+    p.classList.remove("active");
+  });
+
+  document.getElementById(dir).classList.add("active");
+
+  instruction.innerText = "Olhe para: " + dir + " e clique";
+
+  // Espera clique do usuário
+  document.body.onclick = () => validate(dir);
+}
+
+function validate(dir) {
+  const element = document.getElementById(dir);
+
+  // SIMULA ACERTO OU ERRO
+  const acertou = Math.random() > 0.3;
+
+  if (acertou) {
+    element.classList.add("correct");
+  } else {
+    element.classList.add("wrong");
+  }
+
+  current++;
+  document.body.onclick = null;
+
+  setTimeout(nextStep, 1500);
+}
+</script>
+
+</body>
+</html>
